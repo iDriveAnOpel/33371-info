@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #ff6b6b, #ff000d);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    color: #fff;
+    text-align: center;
+  }
+  .dashboard {
+    background: rgba(0,0,0,0.6);
+    padding: 40px 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    width: 300px;
+  }
+  h1 {
+    margin-bottom: 20px;
+  }
+  button {
+    margin-top: 20px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    background: #00ffdd;
+    color: #000;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  button:hover {
+    background: #00e6c1;
+  }
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <h1 id="greet">Welcome!</h1>
+  <p>You have successfully logged in.</p>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<script>
+  // Get username from localStorage
+  const user = localStorage.getItem("loggedInUser");
+  if (!user) {
+    // Not logged in, redirect back to login
+    window.location.href = "index.html";
+  } else {
+    document.getElementById("greet").textContent = `Welcome, ${user}!`;
+  }
+
+  function logout() {
+    localStorage.removeItem("loggedInUser");
+    window.location.href = "index.html";
+  }
+</script>
+</body>
+</html>
