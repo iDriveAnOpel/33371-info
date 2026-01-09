@@ -6,56 +6,46 @@
 <title>Login</title>
 <style>
   body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: linear-gradient(135deg, #6b73ff, #000dff);
+    font-family: 'Segoe UI', sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    background: #f0f4f8;
     margin: 0;
-    color: #fff;
   }
-  .container {
-    background: rgba(0,0,0,0.6);
-    padding: 40px 30px;
+  .login-box {
+    background: #fff;
+    padding: 30px;
     border-radius: 15px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-    text-align: center;
-    width: 320px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    width: 300px;
   }
-  input {
-    width: 90%;
-    padding: 12px;
+  .login-box h1 { text-align: center; margin-bottom: 20px; }
+  .login-box input {
+    width: 100%;
+    padding: 10px;
     margin: 10px 0;
     border-radius: 8px;
-    border: none;
-    font-size: 16px;
+    border: 1px solid #ccc;
   }
-  button {
-    width: 95%;
-    padding: 12px;
+  .login-box button {
+    width: 100%;
+    padding: 10px;
     border-radius: 8px;
     border: none;
+    background: #007bff;
+    color: #fff;
     font-size: 16px;
-    background: #00ffdd;
-    color: #000;
-    font-weight: bold;
     cursor: pointer;
-    margin-top: 10px;
     transition: 0.3s;
   }
-  button:hover {
-    background: #00e6c1;
-  }
-  p#out {
-    margin-top: 15px;
-    min-height: 20px;
-    font-weight: bold;
-  }
+  .login-box button:hover { background: #0056b3; }
+  #out { margin-top: 10px; text-align: center; color: red; font-weight: bold; }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="login-box">
   <h1>Login</h1>
   <input id="u" placeholder="Username">
   <input id="p" type="password" placeholder="Password">
@@ -64,35 +54,35 @@
 </div>
 
 <script>
-  async function login() {
-    const u = document.getElementById("u");
-    const p = document.getElementById("p");
-    const out = document.getElementById("out");
+const api = "https://33371-login-api.info-snaiges.workers.dev";
 
-    out.textContent = "Checking…";
+async function login() {
+  const u = document.getElementById("u").value.trim();
+  const p = document.getElementById("p").value.trim();
+  const out = document.getElementById("out");
 
-    try {
-      const res = await fetch("https://33371-login-api.info-snaiges.workers.dev", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: u.value, password: p.value })
-      });
+  if(!u || !p) { out.textContent = "Enter username and password."; return; }
 
-      const data = await res.json();
+  out.textContent = "Checking…";
 
-      if (data.ok) {
-        // Save username locally for dashboard
-        localStorage.setItem("loggedInUser", u.value);
-        // Redirect to dashboard
-        window.location.href = "dashboard.html";
-      } else {
-        out.textContent = "Wrong login.";
-      }
-    } catch (e) {
-      out.textContent = "Network error.";
-      console.error(e);
+  try {
+    const res = await fetch(api, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "login", username: u, password: p })
+    });
+    const data = await res.json();
+    if(data.ok){
+      localStorage.setItem("loggedInUser", u);
+      window.location.href = "dashboard.html";
+    } else {
+      out.textContent = "Wrong login.";
     }
+  } catch(e) {
+    out.textContent = "Network error.";
+    console.error(e);
   }
+}
 </script>
 </body>
 </html>
