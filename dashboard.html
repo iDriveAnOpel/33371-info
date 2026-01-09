@@ -6,64 +6,166 @@
 <title>Dashboard</title>
 <style>
   body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: linear-gradient(135deg, #ff6b6b, #ff000d);
+    font-family: 'Segoe UI', sans-serif;
+    background: #f0f4f8;
+    margin: 0;
+    padding: 0;
     display: flex;
     justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
+    min-height: 100vh;
+  }
+  .container {
+    width: 450px;
+    margin: 30px;
+  }
+  .profile {
+    background: #1e1e2f;
     color: #fff;
+    padding: 20px;
+    border-radius: 15px;
     text-align: center;
   }
-  .dashboard {
-    background: rgba(0,0,0,0.6);
-    padding: 40px 30px;
-    border-radius: 15px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-    width: 300px;
-  }
-  h1 {
-    margin-bottom: 20px;
-  }
-  button {
-    margin-top: 20px;
-    padding: 12px 20px;
-    border-radius: 8px;
+  .profile h1 { margin: 0 0 10px; }
+  .profile p { margin: 5px 0; }
+  .profile button {
+    margin-top: 10px;
+    padding: 8px 15px;
     border: none;
-    font-size: 16px;
-    font-weight: bold;
-    background: #00ffdd;
-    color: #000;
+    border-radius: 8px;
+    background: #ff4b5c;
+    color: #fff;
     cursor: pointer;
-    transition: 0.3s;
   }
-  button:hover {
-    background: #00e6c1;
+  .profile button:hover { background: #c0343a; }
+
+  .chat-container {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    padding: 15px;
   }
+  #chat {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
+  .message {
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #f1f1f1;
+    position: relative;
+  }
+  .message.self { background: #d1ffd6; text-align: right; }
+  .message .sender { font-weight: bold; font-size: 0.85em; margin-bottom: 3px; }
+  .message .text { font-size: 1em; }
+  .message .time { font-size: 0.75em; color: #555; margin-top: 3px; }
+
+  input, button {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+  input { flex: 1; margin-right: 10px; }
+  .chat-input { display: flex; }
+  .chat-input button { background: #007bff; color: #fff; border: none; transition: 0.3s; }
+  .chat-input button:hover { background: #0056b3; }
 </style>
 </head>
 <body>
-<div class="dashboard">
-  <h1 id="greet">Welcome!</h1>
-  <p>You have successfully logged in.</p>
-  <button onclick="logout()">Logout</button>
+<div class="container">
+  <div class="profile">
+    <h1 id="greet">Welcome!</h1>
+    <p id="phone"></p>
+    <p id="email"></p>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div class="chat-container">
+    <div id="chat"></div>
+    <div class="chat-input">
+      <input id="msg" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 </div>
 
 <script>
-  // Get username from localStorage
-  const user = localStorage.getItem("loggedInUser");
-  if (!user) {
-    // Not logged in, redirect back to login
-    window.location.href = "index.html";
-  } else {
-    document.getElementById("greet").textContent = `Welcome, ${user}!`;
-  }
+const username = localStorage.getItem("loggedInUser");
+if(!username) window.location.href = "index.html";
 
-  function logout() {
-    localStorage.removeItem("loggedInUser");
-    window.location.href = "index.html";
+const api = "https://33371-login-api.info-snaiges.workers.dev";
+
+// Load user info
+async function loadUser() {
+  const res = await fetch(api, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "userinfo", username })
+  });
+  const data = await res.json();
+  if(data.ok){
+    document.getElementById("greet").textContent = `Welcome, ${data.name}!`;
+    document.getElementById("phone").textContent = `Phone: ${data.phone}`;
+    document.getElementById("email").textContent = `Email: ${data.email}`;
   }
+}
+
+// Chat functions
+async function sendMessage(){
+  const msgInput = document.getElementById("msg");
+  const message = msgInput.value.trim();
+  if(!message) return;
+
+  await fetch(api, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "send_message", username, message })
+  });
+  msgInput.value = "";
+  loadChat();
+}
+
+function formatDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleString();
+}
+
+async function loadChat(){
+  const res = await fetch(api, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "get_chat" })
+  });
+  const chat = await res.json();
+  const chatDiv = document.getElementById("chat");
+  chatDiv.innerHTML = "";
+  chat.forEach(m => {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "message" + (m.sender === username ? " self" : "");
+    msgDiv.innerHTML = `
+      <div class="sender">${m.sender}</div>
+      <div class="text">${m.text}</div>
+      <div class="time">${formatDate(m.timestamp)}</div>
+    `;
+    chatDiv.appendChild(msgDiv);
+  });
+  chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+function logout(){
+  localStorage.removeItem("loggedInUser");
+  window.location.href = "index.html";
+}
+
+// Initialize
+loadUser();
+loadChat();
+setInterval(loadChat, 2000);
 </script>
 </body>
 </html>
