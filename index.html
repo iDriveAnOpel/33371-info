@@ -1,20 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Login</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #6b73ff, #000dff);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    color: #fff;
+  }
+  .container {
+    background: rgba(0,0,0,0.6);
+    padding: 40px 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    text-align: center;
+    width: 320px;
+  }
+  input {
+    width: 90%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+  }
+  button {
+    width: 95%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    background: #00ffdd;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: 0.3s;
+  }
+  button:hover {
+    background: #00e6c1;
+  }
+  p#out {
+    margin-top: 15px;
+    min-height: 20px;
+    font-weight: bold;
+  }
+</style>
 </head>
 <body>
+<div class="container">
   <h1>Login</h1>
-
-  <input id="u" placeholder="username">
-  <br>
-  <input id="p" type="password" placeholder="password">
-  <br><br>
-
+  <input id="u" placeholder="Username">
+  <input id="p" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
-
   <p id="out"></p>
+</div>
 
 <script>
   async function login() {
@@ -25,20 +72,22 @@
     out.textContent = "Checking…";
 
     try {
-      const res = await fetch(
-        "https://33371-login-api.info-snaiges.workers.dev",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: u.value,
-            password: p.value
-          })
-        }
-      );
+      const res = await fetch("https://33371-login-api.info-snaiges.workers.dev", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u.value, password: p.value })
+      });
 
       const data = await res.json();
-      out.textContent = data.ok ? "You have logged in succesfully" : "Wrong login.";
+
+      if (data.ok) {
+        // Save username locally for dashboard
+        localStorage.setItem("loggedInUser", u.value);
+        // Redirect to dashboard
+        window.location.href = "dashboard.html";
+      } else {
+        out.textContent = "Wrong login.";
+      }
     } catch (e) {
       out.textContent = "Network error.";
       console.error(e);
