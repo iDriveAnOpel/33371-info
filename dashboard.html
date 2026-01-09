@@ -2,238 +2,107 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard</title>
 <style>
-body { font-family:sans-serif; background:#ffe5e5; color:#660000; margin:0; height:100vh; display:flex; flex-direction:column; }
-#top { display:flex; flex:1; }
-#contacts { width:200px; background:#ffcccc; padding:1rem; overflow-y:auto; }
-#main { flex:1; padding:1rem; overflow-y:auto; display:flex; flex-direction:column; }
-#center { flex:1; overflow-y:auto; }
-#received { height:150px; background:#ffb3b3; overflow-y:auto; padding:0.5rem; margin-top:0.5rem; border-radius:5px; }
-#bulletin { width:250px; background:#ff9999; padding:1rem; overflow-y:auto; }
-button { padding:0.3rem 0.5rem; margin:0.2rem; }
-.task-done { text-decoration: line-through; color:gray; }
-input, select, textarea { margin:0.3rem 0; padding:0.3rem; width:100%; border-radius:5px; border:1px solid #660000; }
+  body { font-family:sans-serif; background:#ffcccc; margin:0; display:flex; height:100vh; }
+  #contacts { width:200px; background:#ff6666; padding:1rem; overflow-y:auto; color:white; }
+  #main { flex:1; display:flex; flex-direction:column; }
+  #bulletin { background:#ff9999; flex:1; padding:1rem; overflow-y:auto; }
+  #tasks { background:#ffb3b3; padding:1rem; height:200px; overflow-y:auto; }
+  h3 { margin-top:0; }
+  .contact { margin:0.5rem 0; cursor:pointer; }
+  .task { margin:0.5rem 0; }
+  button { margin-left:0.5rem; padding:0.2rem 0.5rem; cursor:pointer; }
 </style>
 </head>
 <body>
+<div id="contacts">
+  <h3>Contacts</h3>
+  <div id="contact-list"></div>
+</div>
 
-<div id="top">
-  <div id="contacts">
-    <h3>Contacts</h3>
-    <div id="contactList"></div>
-  </div>
-
-  <div id="main">
-    <div id="center">
-      <h2>Welcome <span id="userName"></span></h2>
-
-      <h3>Assign Tasks</h3>
-      <div id="tasks"></div>
-      <select id="assignee"></select>
-      <input id="taskText" placeholder="Task text" />
-      <button onclick="sendTask()">Send</button>
-
-      <h3>Chat</h3>
-      <div id="chat"></div>
-      <input id="chatTo" placeholder="To username" />
-      <input id="chatText" placeholder="Message" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
-
-    <div id="received">
-      <h3>Received Tasks</h3>
-      <div id="receivedTasks"></div>
-    </div>
-  </div>
-
+<div id="main">
   <div id="bulletin">
     <h3>Bulletin Board</h3>
-    <div id="bulletinPosts"></div>
-    <textarea id="newBulletin" placeholder="Post something"></textarea>
+    <div id="bulletin-list"></div>
+    <input type="text" id="bulletin-text" placeholder="New bulletin">
     <button onclick="postBulletin()">Post</button>
+  </div>
+
+  <div id="tasks">
+    <h3>Received Tasks</h3>
+    <div id="task-list"></div>
   </div>
 </div>
 
 <script>
-const user = JSON.parse(localStorage.getItem('user'));
+const API = 'https://33371-login-api.info-snaiges.workers.dev/';
+const user = JSON.parse(sessionStorage.getItem('user'));
 if(!user) window.location.href='index.html';
-document.getElementById('userName').innerText = user.name;
 
-async function fetchUsers(){
-  const res = await fetch('https://33371-login-api.info-snaiges.workers.dev/',{ 
-    method:'POST', 
-    headers:{'Content-Type':'application/json'}, 
-    body:JSON.stringify({action:'getUsers'}) 
-  });
-  const data = await res.json();
-  renderContacts(data.users);
-  renderTasks(data.users);
-  renderReceived(data.users);
-}
-
-function renderContacts(users){
-  const container = document.getElementById('contactList');
+async function loadUsers() {
+  const resp = await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getUsers'})});
+  const data = await resp.json();
+  if(!data.success) return;
+  const container = document.getElementById('contact-list');
   container.innerHTML='';
-  users.forEach(u=>{
+  data.users.forEach(u=>{
     const div = document.createElement('div');
-    div.innerHTML=`<b>${u.name}</b> (${u.role})`;
-    
-    if(user.role==='admin'){
-      const pwBtn = document.createElement('button');
-      pwBtn.innerText='Change PW';
-      pwBtn.onclick=()=> {
-        const np = prompt('New password for '+u.name);
-        if(np) changePassword(u.name,np);
-      };
-      const roleBtn = document.createElement('button');
-      roleBtn.innerText='Make Admin';
-      roleBtn.onclick=()=> makeAdmin(u.name);
-      div.appendChild(pwBtn);
-      div.appendChild(roleBtn);
-    }
-
+    div.className='contact';
+    div.innerText=u.name + (u.role==='admin'?' [ADMIN]':'');
+    div.onclick = ()=>alert('You can implement direct message here: '+u.name);
     container.appendChild(div);
   });
-
-  const assigneeSelect = document.getElementById('assignee');
-  assigneeSelect.innerHTML='';
-  users.forEach(u=>{
-    let opt = document.createElement('option');
-    opt.value=u.name; opt.innerText=u.name;
-    assigneeSelect.appendChild(opt);
-  });
 }
 
-function renderTasks(users){
-  const container = document.getElementById('tasks');
-  container.innerHTML='';
-  users.forEach(u=>{
-    u.tasks.forEach(t=>{
-      if(t.from===user.name){ // only tasks sent by me
-        const div = document.createElement('div');
-        div.innerHTML=`<b>To ${u.name}:</b> <span class="${t.done?'task-done':''}">${t.text}</span>`;
-        container.appendChild(div);
-      }
-    });
-  });
-}
-
-function renderReceived(users){
-  const container = document.getElementById('receivedTasks');
-  container.innerHTML='';
-  users.forEach(u=>{
-    if(u.name===user.name){
-      u.tasks.forEach(t=>{
-        const div = document.createElement('div');
-        div.innerHTML=`<b>${t.from}:</b> <span class="${t.done?'task-done':''}">${t.text}</span>`;
-        if(!t.done){
-          const btn = document.createElement('button');
-          btn.innerText='Mark Done';
-          btn.onclick=()=>markDone(user.name,t.id);
-          div.appendChild(btn);
-        }
-        container.appendChild(div);
-      });
-    }
-  });
-}
-
-async function sendTask(){
-  const text = document.getElementById('taskText').value;
-  const assignee = document.getElementById('assignee').value;
-  await fetch('WORKER_URL',{ 
-    method:'POST', 
-    headers:{'Content-Type':'application/json'}, 
-    body:JSON.stringify({action:'addTask', assignee, text, from:user.name})
-  });
-  fetchUsers();
-}
-
-async function markDone(username,id){
-  await fetch('WORKER_URL',{ 
-    method:'POST', 
-    headers:{'Content-Type':'application/json'}, 
-    body:JSON.stringify({action:'markTaskDone', username, taskId:id})
-  });
-  fetchUsers();
-}
-
-async function fetchBulletin(){
-  const res = await fetch('WORKER_URL',{
-    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getBulletin'})
-  });
-  const data = await res.json();
-  const container = document.getElementById('bulletinPosts');
+async function loadBulletin() {
+  const resp = await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getBulletin'})});
+  const data = await resp.json();
+  if(!data.success) return;
+  const container = document.getElementById('bulletin-list');
   container.innerHTML='';
   data.bulletin.forEach(b=>{
     const div = document.createElement('div');
-    div.innerHTML=`<b>${b.author}:</b> ${b.text}`;
+    div.innerText=`[${new Date(b.time).toLocaleTimeString()}] ${b.author}: ${b.text}`;
     container.appendChild(div);
   });
 }
 
-async function postBulletin(){
-  const text = document.getElementById('newBulletin').value;
+async function postBulletin() {
+  const text = document.getElementById('bulletin-text').value.trim();
   if(!text) return;
-  await fetch('WORKER_URL',{ 
-    method:'POST', headers:{'Content-Type':'application/json'}, 
-    body:JSON.stringify({action:'postBulletin', author:user.name, text})
-  });
-  document.getElementById('newBulletin').value='';
-  fetchBulletin();
+  await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'postBulletin',author:user.name,text})});
+  document.getElementById('bulletin-text').value='';
+  loadBulletin();
 }
 
-async function fetchChat(){
-  const res = await fetch('WORKER_URL',{
-    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getMessages'})
-  });
-  const data = await res.json();
-  const container = document.getElementById('chat');
+async function loadTasks() {
+  const resp = await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getUsers'})});
+  const data = await resp.json();
+  if(!data.success) return;
+  const container = document.getElementById('task-list');
   container.innerHTML='';
-  data.messages.forEach(m=>{
+  const me = data.users.find(u=>u.name===user.name);
+  if(!me || !me.tasks) return;
+  me.tasks.forEach(t=>{
     const div = document.createElement('div');
-    div.innerHTML=`<b>${m.from} → ${m.to}:</b> ${m.text}`;
+    div.className='task';
+    div.innerHTML = `${t.text} from ${t.from} <button onclick="markDone(${t.id})">${t.done?'✔':'Mark done'}</button>`;
     container.appendChild(div);
   });
 }
 
-async function sendMessage(){
-  const to = document.getElementById('chatTo').value;
-  const text = document.getElementById('chatText').value;
-  if(!to||!text) return;
-  await fetch('WORKER_URL',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'sendMessage', from:user.name, to, text})
-  });
-  document.getElementById('chatText').value='';
-  fetchChat();
+async function markDone(id) {
+  await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'markTaskDone',username:user.name,taskId:id})});
+  loadTasks();
 }
 
-// Admin helpers
-async function changePassword(target,newPw){
-  await fetch('WORKER_URL',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'changePassword', admin:user.name, target, newPassword:newPw})
-  });
-  fetchUsers();
-}
-
-async function makeAdmin(target){
-  await fetch('WORKER_URL',{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'makeAdmin', admin:user.name, target})
-  });
-  fetchUsers();
-}
-
-// Initial fetches
-fetchUsers();
-fetchBulletin();
-fetchChat();
-setInterval(fetchUsers,5000);
-setInterval(fetchChat,2000);
-setInterval(fetchBulletin,5000);
+// Initial load
+loadUsers();
+loadBulletin();
+loadTasks();
+setInterval(()=>{loadBulletin(); loadTasks();},5000); // refresh every 5s
 </script>
 </body>
 </html>
