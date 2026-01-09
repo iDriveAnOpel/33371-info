@@ -2,170 +2,163 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard</title>
 <style>
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #f0f4f8;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    min-height: 100vh;
-  }
-  .container {
-    width: 450px;
-    margin: 30px;
-  }
-  .profile {
-    background: #1e1e2f;
-    color: #fff;
-    padding: 20px;
-    border-radius: 15px;
-    text-align: center;
-  }
-  .profile h1 { margin: 0 0 10px; }
-  .profile p { margin: 5px 0; }
-  .profile button {
-    margin-top: 10px;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 8px;
-    background: #ff4b5c;
-    color: #fff;
-    cursor: pointer;
-  }
-  .profile button:hover { background: #c0343a; }
-
-  .chat-container {
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    padding: 15px;
-  }
-  #chat {
-    max-height: 400px;
-    overflow-y: auto;
-    margin-bottom: 10px;
-  }
-  .message {
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 10px;
-    background: #f1f1f1;
-    position: relative;
-  }
-  .message.self { background: #d1ffd6; text-align: right; }
-  .message .sender { font-weight: bold; font-size: 0.85em; margin-bottom: 3px; }
-  .message .text { font-size: 1em; }
-  .message .time { font-size: 0.75em; color: #555; margin-top: 3px; }
-
-  input, button {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 14px;
-  }
-  input { flex: 1; margin-right: 10px; }
-  .chat-input { display: flex; }
-  .chat-input button { background: #007bff; color: #fff; border: none; transition: 0.3s; }
-  .chat-input button:hover { background: #0056b3; }
+  body { margin:0; font-family:Arial,sans-serif; background:#e6e6fa; display:flex; flex-direction:column; height:100vh; }
+  #header { background:#001f4d; color:#fff; padding:10px; display:flex; justify-content:space-between; align-items:center; }
+  #header h1 { margin:0; }
+  #container { display:flex; flex:1; overflow:hidden; }
+  #sidebar { width:300px; background:#001f4d; color:#fff; padding:15px; overflow-y:auto; }
+  #main { flex:1; display:flex; flex-direction:column; padding:15px; }
+  .user { padding:5px; border-bottom:1px solid #444; margin-bottom:5px; }
+  #chat { flex:1; background:#fff; border-radius:6px; padding:10px; overflow-y:auto; margin-bottom:10px; }
+  .message { border:1px solid #001f4d; border-radius:6px; padding:6px; margin:5px 0; background:#f0f0f0; }
+  .message-header { font-size:0.8em; color:#555; margin-bottom:3px; display:flex; justify-content:space-between; }
+  #chat-input { display:flex; }
+  #chat-input input { flex:1; padding:8px; border-radius:4px; border:1px solid #ccc; margin-right:5px; }
+  #chat-input button { padding:8px 12px; border:none; border-radius:4px; background:#ff4b5c; color:#fff; cursor:pointer; }
+  .task { background:#ffcccb; margin:3px 0; padding:4px 6px; border-radius:4px; }
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="profile">
-    <h1 id="greet">Welcome!</h1>
-    <p id="phone"></p>
-    <p id="email"></p>
-    <button onclick="logout()">Logout</button>
+<div id="header">
+  <h1 id="welcome">Dashboard</h1>
+  <button onclick="logout()">Logout</button>
+</div>
+<div id="container">
+  <div id="sidebar">
+    <h2>Active Users</h2>
+    <div id="users"></div>
   </div>
-
-  <div class="chat-container">
+  <div id="main">
     <div id="chat"></div>
-    <div class="chat-input">
-      <input id="msg" placeholder="Type a message..." />
+    <div id="chat-input">
+      <input id="chat-message" placeholder="Type a message...">
       <button onclick="sendMessage()">Send</button>
+      <button onclick="clearChat()">Clear</button>
     </div>
   </div>
 </div>
 
 <script>
-const username = localStorage.getItem("loggedInUser");
-if(!username) window.location.href = "index.html";
+const WORKER_URL = "https://33371-login-api.info-snaiges.workers.dev";
 
-const api = "https://33371-login-api.info-snaiges.workers.dev";
-
-// Load user info
-async function loadUser() {
-  const res = await fetch(api, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "userinfo", username })
-  });
-  const data = await res.json();
-  if(data.ok){
-    document.getElementById("greet").textContent = `Welcome, ${data.name}!`;
-    document.getElementById("phone").textContent = `Phone: ${data.phone}`;
-    document.getElementById("email").textContent = `Email: ${data.email}`;
-  }
+// Cookie helpers
+function getCookie(name){
+  const matches = document.cookie.match(new RegExp('(?:^|; )'+name+'=([^;]*)'));
+  return matches ? decodeURIComponent(matches[1]) : null;
+}
+function setCookie(name,value,days=1){
+  const expires = new Date(Date.now() + days*86400000).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires}`;
 }
 
-// Chat functions
-async function sendMessage(){
-  const msgInput = document.getElementById("msg");
-  const message = msgInput.value.trim();
-  if(!message) return;
+const username = getCookie("username");
+if(!username) window.location.href="index.html";
+document.getElementById("welcome").textContent = `Welcome, ${username}`;
 
-  await fetch(api, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "send_message", username, message })
+// ----- USERS LIST -----
+async function loadUsers(){
+  const usersDiv = document.getElementById("users");
+  usersDiv.innerHTML="";
+  // in a real app, you might have a KV USERS list
+  const exampleUsers = ["motiejus","alice","bob"];
+  for(let u of exampleUsers){
+    if(u===username) continue;
+    const div = document.createElement("div");
+    div.className="user";
+    div.innerHTML=`<b>${u}</b><br><span>Phone: 123-456-7890</span><br><span>Email: ${u}@example.com</span><br>
+      <input placeholder="Assign task..." id="task-${u}"><button onclick="assignTask('${u}')">Assign</button>
+      <div id="tasks-${u}"></div>`;
+    usersDiv.appendChild(div);
+  }
+}
+function assignTask(u){
+  const input = document.getElementById(`task-${u}`);
+  if(!input.value) return;
+  const tasksDiv = document.getElementById(`tasks-${u}`);
+  const div = document.createElement("div");
+  div.className="task";
+  div.textContent=input.value;
+  tasksDiv.appendChild(div);
+  input.value="";
+}
+
+// ----- CHAT -----
+async function loadChat(){
+  try{
+    const res = await fetch(WORKER_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"get_chat"})
+    });
+    const chat = await res.json();
+    const chatDiv = document.getElementById("chat");
+    chatDiv.innerHTML="";
+    chat.forEach(m=>{
+      const div = document.createElement("div");
+      div.className="message";
+      const date = new Date(m.timestamp);
+      div.innerHTML=`<div class="message-header">
+        <span>Sent by ${m.sender}</span><span>${date.toLocaleString()}</span>
+        <button onclick="deleteMessage(${m.timestamp})">Delete</button>
+      </div>
+      <div class="message-text">${m.text}</div>`;
+      chatDiv.appendChild(div);
+    });
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+  }catch(e){ console.error(e); }
+}
+
+async function sendMessage(){
+  const input = document.getElementById("chat-message");
+  if(!input.value) return;
+  try{
+    await fetch(WORKER_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action:"send_message", username, message:input.value})
+    });
+    input.value="";
+    loadChat();
+  }catch(e){ console.error(e); }
+}
+
+async function clearChat(){
+  // in this simple demo, just clear KV "CHAT_MESSAGES"
+  await fetch(WORKER_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"clear_chat"})
   });
-  msgInput.value = "";
   loadChat();
 }
 
-function formatDate(ts){
-  const d = new Date(ts);
-  return d.toLocaleString();
+// delete single message
+async function deleteMessage(timestamp){
+  await fetch(WORKER_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"delete_message", timestamp})
+  });
+  loadChat();
 }
 
-async function loadChat(){
-  const res = await fetch(api, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "get_chat" })
-  });
-  const chat = await res.json();
-  const chatDiv = document.getElementById("chat");
-  chatDiv.innerHTML = "";
-  chat.forEach(m => {
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "message" + (m.sender === username ? " self" : "");
-    msgDiv.innerHTML = `
-      <div class="sender">${m.sender}</div>
-      <div class="text">${m.text}</div>
-      <div class="time">${formatDate(m.timestamp)}</div>
-    `;
-    chatDiv.appendChild(msgDiv);
-  });
-  chatDiv.scrollTop = chatDiv.scrollHeight;
-}
-
+// ----- LOGOUT -----
 function logout(){
-  localStorage.removeItem("loggedInUser");
-  window.location.href = "index.html";
+  setCookie("username","",-1);
+  window.location.href="index.html";
 }
 
-// Initialize
-loadUser();
+// Enter key for chat
+document.getElementById("chat-message").addEventListener("keydown",e=>{
+  if(e.key==="Enter") sendMessage();
+});
+
+// Auto-refresh
+setInterval(loadChat,3000);
+loadUsers();
 loadChat();
-setInterval(loadChat, 2000);
 </script>
 </body>
 </html>
