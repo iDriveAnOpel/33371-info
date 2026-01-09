@@ -16,8 +16,15 @@
 
   <p id="out"></p>
 
-  <script>
-    async function login() {
+<script>
+  async function login() {
+    const u = document.getElementById("u");
+    const p = document.getElementById("p");
+    const out = document.getElementById("out");
+
+    out.textContent = "Checking…";
+
+    try {
       const res = await fetch(
         "https://33371-login-api.info-snaiges.workers.dev",
         {
@@ -32,7 +39,11 @@
 
       const data = await res.json();
       out.textContent = data.ok ? "It works." : "Wrong login.";
+    } catch (e) {
+      out.textContent = "Network error.";
+      console.error(e);
     }
-  </script>
+  }
+</script>
 </body>
 </html>
