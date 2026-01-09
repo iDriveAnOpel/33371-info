@@ -38,7 +38,7 @@
       );
 
       const data = await res.json();
-      out.textContent = data.ok ? "It works." : "Wrong login.";
+      out.textContent = data.ok ? "You have logged in succesfully" : "Wrong login.";
     } catch (e) {
       out.textContent = "Network error.";
       console.error(e);
