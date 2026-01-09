@@ -2,87 +2,57 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login</title>
 <style>
-  body {
-    font-family: 'Segoe UI', sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background: #f0f4f8;
-    margin: 0;
-  }
-  .login-box {
-    background: #fff;
-    padding: 30px;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    width: 300px;
-  }
-  .login-box h1 { text-align: center; margin-bottom: 20px; }
-  .login-box input {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-  }
-  .login-box button {
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
-    background: #007bff;
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-  .login-box button:hover { background: #0056b3; }
-  #out { margin-top: 10px; text-align: center; color: red; font-weight: bold; }
+  body { margin:0; font-family: Arial,sans-serif; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:#001f4d; color:#fff; }
+  input { margin:5px 0; padding:8px; width:220px; border-radius:4px; border:none; }
+  button { margin-top:10px; padding:8px 16px; border:none; border-radius:4px; background:#ff4b5c; color:#fff; cursor:pointer; }
+  p { margin-top:10px; color:#ffcccb; }
 </style>
 </head>
 <body>
-<div class="login-box">
-  <h1>Login</h1>
-  <input id="u" placeholder="Username">
-  <input id="p" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
-  <p id="out"></p>
-</div>
+<h1>Login</h1>
+<input id="u" placeholder="Username">
+<input id="p" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<p id="login-out"></p>
 
 <script>
-const api = "https://33371-login-api.info-snaiges.workers.dev";
+const WORKER_URL = "https://33371-login-api.info-snaiges.workers.dev";
+
+function setCookie(name,value,days=1){
+  const expires = new Date(Date.now() + days*86400000).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires}`;
+}
 
 async function login() {
   const u = document.getElementById("u").value.trim();
   const p = document.getElementById("p").value.trim();
-  const out = document.getElementById("out");
-
-  if(!u || !p) { out.textContent = "Enter username and password."; return; }
-
+  const out = document.getElementById("login-out");
   out.textContent = "Checking…";
 
   try {
-    const res = await fetch(api, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "login", username: u, password: p })
+    const res = await fetch(WORKER_URL, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ action:"login", username:u, password:p })
     });
     const data = await res.json();
     if(data.ok){
-      localStorage.setItem("loggedInUser", u);
+      setCookie("username", u, 1);
       window.location.href = "dashboard.html";
     } else {
       out.textContent = "Wrong login.";
     }
-  } catch(e) {
+  } catch(e){
     out.textContent = "Network error.";
     console.error(e);
   }
 }
+
+// Enter key triggers login
+document.getElementById("u").addEventListener("keydown", e => { if(e.key==="Enter") login(); });
+document.getElementById("p").addEventListener("keydown", e => { if(e.key==="Enter") login(); });
 </script>
 </body>
 </html>
