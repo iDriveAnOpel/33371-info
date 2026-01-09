@@ -1,153 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Login</title>
-<style>
-  body { font-family: sans-serif; margin: 0; padding: 0; }
-  #login { background: #4a90e2; color: white; padding: 50px; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-  #dashboard { background: #e74c3c; color: white; padding: 20px; display: none; height: 100vh; }
-  input { padding: 10px; margin: 5px; }
-  button { padding: 10px; margin: 5px; cursor: pointer; }
-  #messages { border: 1px solid white; padding: 10px; margin: 10px 0; max-height: 200px; overflow-y: scroll; }
-  #tasks { border: 1px solid white; padding: 10px; margin: 10px 0; max-height: 200px; overflow-y: scroll; }
-  #bulletin { border: 1px solid white; padding: 10px; margin: 10px 0; max-height: 200px; overflow-y: scroll; }
-</style>
+  <meta charset="UTF-8">
+  <title>Login</title>
+  <style>
+    body { background: #007bff; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .login-box { background: rgba(0,0,0,0.2); padding: 30px; border-radius: 10px; text-align: center; }
+    input { padding: 10px; margin: 10px 0; width: 100%; border-radius: 5px; border: none; }
+    button { padding: 10px 20px; border: none; border-radius: 5px; background: #0056b3; color: white; cursor: pointer; }
+    .error { color: #ffaaaa; }
+  </style>
 </head>
 <body>
+  <div class="login-box">
+    <h2>Login</h2>
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div class="error" id="error"></div>
+  </div>
 
-<div id="login">
-  <h1>Login</h1>
-  <input id="username" placeholder="Username">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
-  <p id="loginError" style="color: yellow;"></p>
-</div>
+  <script>
+    const workerURL = "YOUR_WORKER_URL_HERE"; // replace with your Worker URL
 
-<div id="dashboard">
-  <h1>Dashboard</h1>
-  <p id="welcome"></p>
+    async function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
 
-  <h2>Tasks</h2>
-  <div id="tasks"></div>
+      const res = await fetch(workerURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login", username, password })
+      });
+      const data = await res.json();
 
-  <h2>Messages</h2>
-  <div id="messages"></div>
-  <input id="msgText" placeholder="Write message">
-  <input id="msgTo" placeholder="To (optional)">
-  <button onclick="sendMessage()">Send</button>
-
-  <h2>Bulletin Board</h2>
-  <div id="bulletin"></div>
-  <input id="bulletinText" placeholder="Add bulletin post">
-  <button onclick="addBulletin()">Post</button>
-
-  <button onclick="logout()">Logout</button>
-</div>
-
-<script>
-const WORKER_URL = "https://YOUR_WORKER_URL_HERE"; // replace with your deployed worker URL
-let currentUser = null;
-
-async function login() {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-
-  const res = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "login", username, password })
-  });
-  const data = await res.json();
-
-  if (data.success) {
-    currentUser = data.user;
-    document.getElementById("login").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-    document.getElementById("welcome").innerText = `Welcome, ${currentUser.name} (${currentUser.role})`;
-    loadMessages();
-    loadTasks();
-    loadBulletin();
-  } else {
-    document.getElementById("loginError").innerText = data.error;
-  }
-}
-
-async function loadMessages() {
-  const res = await fetch(WORKER_URL + "/messages");
-  const msgs = await res.json();
-  const container = document.getElementById("messages");
-  container.innerHTML = "";
-  msgs.forEach(m => {
-    const div = document.createElement("div");
-    div.innerHTML = `<b>${m.from}</b>${m.to ? " → "+m.to : ""}: ${m.text}`;
-    container.appendChild(div);
-  });
-}
-
-async function sendMessage() {
-  const text = document.getElementById("msgText").value;
-  const to = document.getElementById("msgTo").value || null;
-  await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "sendMessage", from: currentUser.username, to, text })
-  });
-  document.getElementById("msgText").value = "";
-  loadMessages();
-}
-
-async function loadTasks() {
-  const res = await fetch(WORKER_URL + "/users");
-  const users = await res.json();
-  const tasks = users[currentUser.username]?.tasks || [];
-  const container = document.getElementById("tasks");
-  container.innerHTML = "";
-  tasks.forEach(t => {
-    const div = document.createElement("div");
-    div.innerHTML = `${t.text} ${t.done ? "(Done)" : ""} <button onclick="markDone('${t.id}')">Done</button>`;
-    container.appendChild(div);
-  });
-}
-
-async function markDone(taskId) {
-  await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "markTaskDone", username: currentUser.username, taskId })
-  });
-  loadTasks();
-}
-
-async function loadBulletin() {
-  const res = await fetch(WORKER_URL + "/bulletin");
-  const b = await res.json();
-  const container = document.getElementById("bulletin");
-  container.innerHTML = "";
-  b.posts.forEach(p => {
-    const div = document.createElement("div");
-    div.innerHTML = `<b>${p.from}</b>: ${p.text}`;
-    container.appendChild(div);
-  });
-}
-
-async function addBulletin() {
-  const text = document.getElementById("bulletinText").value;
-  await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "addBulletin", from: currentUser.username, text })
-  });
-  document.getElementById("bulletinText").value = "";
-  loadBulletin();
-}
-
-function logout() {
-  currentUser = null;
-  document.getElementById("login").style.display = "flex";
-  document.getElementById("dashboard").style.display = "none";
-}
-</script>
-
+      if(data.success) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.location.href = "dashboard.html";
+      } else {
+        document.getElementById("error").innerText = "Invalid login!";
+      }
+    }
+  </script>
 </body>
 </html>
