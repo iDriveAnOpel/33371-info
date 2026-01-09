@@ -2,57 +2,45 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Login</title>
 <style>
-  body { margin:0; font-family: Arial,sans-serif; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:#001f4d; color:#fff; }
-  input { margin:5px 0; padding:8px; width:220px; border-radius:4px; border:none; }
-  button { margin-top:10px; padding:8px 16px; border:none; border-radius:4px; background:#ff4b5c; color:#fff; cursor:pointer; }
-  p { margin-top:10px; color:#ffcccb; }
+  body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; }
+  .login-box { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  input { display: block; margin: 1rem 0; padding: 0.5rem; width: 100%; }
+  button { padding: 0.5rem 1rem; }
 </style>
 </head>
 <body>
-<h1>Login</h1>
-<input id="u" placeholder="Username">
-<input id="p" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-<p id="login-out"></p>
+<div class="login-box">
+  <h2>Login</h2>
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
+  <p id="error" style="color:red;"></p>
+</div>
 
 <script>
-const WORKER_URL = "https://33371-login-api.info-snaiges.workers.dev";
+const endpoint = "https://your-worker.workers.dev";
 
-function setCookie(name,value,days=1){
-  const expires = new Date(Date.now() + days*86400000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expires}`;
-}
+document.getElementById("loginBtn").onclick = async () => {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
 
-async function login() {
-  const u = document.getElementById("u").value.trim();
-  const p = document.getElementById("p").value.trim();
-  const out = document.getElementById("login-out");
-  out.textContent = "Checking…";
+  const res = await fetch(endpoint, {
+    method: "POST",
+    body: JSON.stringify({ action: "login", username, password }),
+    headers: { "Content-Type": "application/json" }
+  });
 
-  try {
-    const res = await fetch(WORKER_URL, {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ action:"login", username:u, password:p })
-    });
-    const data = await res.json();
-    if(data.ok){
-      setCookie("username", u, 1);
-      window.location.href = "dashboard.html";
-    } else {
-      out.textContent = "Wrong login.";
-    }
-  } catch(e){
-    out.textContent = "Network error.";
-    console.error(e);
+  const data = await res.json();
+  if (data.success) {
+    localStorage.setItem("user", JSON.stringify(data.user));
+    window.location.href = "dashboard.html";
+  } else {
+    document.getElementById("error").innerText = data.error;
   }
-}
-
-// Enter key triggers login
-document.getElementById("u").addEventListener("keydown", e => { if(e.key==="Enter") login(); });
-document.getElementById("p").addEventListener("keydown", e => { if(e.key==="Enter") login(); });
+};
 </script>
 </body>
 </html>
