@@ -1,161 +1,239 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard</title>
-  <style>
-    body { background: #c82333; color: white; font-family: sans-serif; margin: 0; display: flex; }
-    #sidebar { width: 200px; background: #a71d2a; padding: 20px; }
-    #main { flex: 1; padding: 20px; }
-    h2 { margin-top: 0; }
-    input, textarea { width: 100%; margin: 5px 0; padding: 5px; border-radius: 5px; border: none; }
-    button { padding: 5px 10px; border: none; border-radius: 5px; background: white; color: #c82333; cursor: pointer; margin-top: 5px; }
-    .message { padding: 5px; margin: 5px 0; border-radius: 5px; }
-    .task { display: flex; justify-content: space-between; margin: 5px 0; background: rgba(255,255,255,0.2); padding: 5px; border-radius: 5px; }
-  </style>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+<style>
+body { font-family:sans-serif; background:#ffe5e5; color:#660000; margin:0; height:100vh; display:flex; flex-direction:column; }
+#top { display:flex; flex:1; }
+#contacts { width:200px; background:#ffcccc; padding:1rem; overflow-y:auto; }
+#main { flex:1; padding:1rem; overflow-y:auto; display:flex; flex-direction:column; }
+#center { flex:1; overflow-y:auto; }
+#received { height:150px; background:#ffb3b3; overflow-y:auto; padding:0.5rem; margin-top:0.5rem; border-radius:5px; }
+#bulletin { width:250px; background:#ff9999; padding:1rem; overflow-y:auto; }
+button { padding:0.3rem 0.5rem; margin:0.2rem; }
+.task-done { text-decoration: line-through; color:gray; }
+input, select, textarea { margin:0.3rem 0; padding:0.3rem; width:100%; border-radius:5px; border:1px solid #660000; }
+</style>
 </head>
 <body>
-  <div id="sidebar">
-    <h2>Bulletin</h2>
-    <textarea id="bulletin"></textarea>
-    <button onclick="updateBulletin()">Update</button>
-    <hr>
-    <h3>Users</h3>
-    <div id="users"></div>
+
+<div id="top">
+  <div id="contacts">
+    <h3>Contacts</h3>
+    <div id="contactList"></div>
   </div>
 
   <div id="main">
-    <h2>Messages</h2>
-    <div id="messages"></div>
-    <textarea id="msgText" placeholder="Type a message"></textarea>
-    <button onclick="sendMessage()">Send</button>
+    <div id="center">
+      <h2>Welcome <span id="userName"></span></h2>
 
-    <h2>Tasks</h2>
-    <div id="tasks"></div>
-    <input id="taskText" placeholder="New task">
-    <button onclick="addTask()">Add Task</button>
+      <h3>Assign Tasks</h3>
+      <div id="tasks"></div>
+      <select id="assignee"></select>
+      <input id="taskText" placeholder="Task text" />
+      <button onclick="sendTask()">Send</button>
+
+      <h3>Chat</h3>
+      <div id="chat"></div>
+      <input id="chatTo" placeholder="To username" />
+      <input id="chatText" placeholder="Message" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <div id="received">
+      <h3>Received Tasks</h3>
+      <div id="receivedTasks"></div>
+    </div>
   </div>
 
-  <script>
-    const workerURL = "YOUR_WORKER_URL_HERE"; // replace with your Worker URL
-    let user = JSON.parse(localStorage.getItem("user"));
+  <div id="bulletin">
+    <h3>Bulletin Board</h3>
+    <div id="bulletinPosts"></div>
+    <textarea id="newBulletin" placeholder="Post something"></textarea>
+    <button onclick="postBulletin()">Post</button>
+  </div>
+</div>
 
-    if(!user) window.location.href = "index.html";
+<script>
+const user = JSON.parse(localStorage.getItem('user'));
+if(!user) window.location.href='index.html';
+document.getElementById('userName').innerText = user.name;
 
-    async function loadData() {
-      const res = await fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "getAllData" })
-      });
-      const data = await res.json();
-      renderUsers(data.users);
-      renderMessages(data.messages);
-      document.getElementById("bulletin").value = data.bulletin;
-      renderTasks(data.users[user.username]?.tasks || []);
+async function fetchUsers(){
+  const res = await fetch('WORKER_URL',{ 
+    method:'POST', 
+    headers:{'Content-Type':'application/json'}, 
+    body:JSON.stringify({action:'getUsers'}) 
+  });
+  const data = await res.json();
+  renderContacts(data.users);
+  renderTasks(data.users);
+  renderReceived(data.users);
+}
+
+function renderContacts(users){
+  const container = document.getElementById('contactList');
+  container.innerHTML='';
+  users.forEach(u=>{
+    const div = document.createElement('div');
+    div.innerHTML=`<b>${u.name}</b> (${u.role})`;
+    
+    if(user.role==='admin'){
+      const pwBtn = document.createElement('button');
+      pwBtn.innerText='Change PW';
+      pwBtn.onclick=()=> {
+        const np = prompt('New password for '+u.name);
+        if(np) changePassword(u.name,np);
+      };
+      const roleBtn = document.createElement('button');
+      roleBtn.innerText='Make Admin';
+      roleBtn.onclick=()=> makeAdmin(u.name);
+      div.appendChild(pwBtn);
+      div.appendChild(roleBtn);
     }
 
-    function renderUsers(users) {
-      const container = document.getElementById("users");
-      container.innerHTML = "";
-      for(const uname in users){
-        const u = users[uname];
-        const div = document.createElement("div");
-        div.innerHTML = `${u.name} (${u.role}) 
-          ${user.role === "admin" && u.role !== "admin" ? `<button onclick="makeAdmin('${uname}')">Make Admin</button>` : ""}
-          <button onclick="messageUser('${uname}')">Message</button>`;
+    container.appendChild(div);
+  });
+
+  const assigneeSelect = document.getElementById('assignee');
+  assigneeSelect.innerHTML='';
+  users.forEach(u=>{
+    let opt = document.createElement('option');
+    opt.value=u.name; opt.innerText=u.name;
+    assigneeSelect.appendChild(opt);
+  });
+}
+
+function renderTasks(users){
+  const container = document.getElementById('tasks');
+  container.innerHTML='';
+  users.forEach(u=>{
+    u.tasks.forEach(t=>{
+      if(t.from===user.name){ // only tasks sent by me
+        const div = document.createElement('div');
+        div.innerHTML=`<b>To ${u.name}:</b> <span class="${t.done?'task-done':''}">${t.text}</span>`;
         container.appendChild(div);
       }
-    }
+    });
+  });
+}
 
-    function renderMessages(msgs) {
-      const container = document.getElementById("messages");
-      container.innerHTML = "";
-      msgs.forEach(m=>{
-        const div = document.createElement("div");
-        div.className = "message";
-        div.style.background = m.color || "white";
-        div.innerText = `${m.from}: ${m.text}`;
+function renderReceived(users){
+  const container = document.getElementById('receivedTasks');
+  container.innerHTML='';
+  users.forEach(u=>{
+    if(u.name===user.name){
+      u.tasks.forEach(t=>{
+        const div = document.createElement('div');
+        div.innerHTML=`<b>${t.from}:</b> <span class="${t.done?'task-done':''}">${t.text}</span>`;
+        if(!t.done){
+          const btn = document.createElement('button');
+          btn.innerText='Mark Done';
+          btn.onclick=()=>markDone(user.name,t.id);
+          div.appendChild(btn);
+        }
         container.appendChild(div);
       });
     }
+  });
+}
 
-    function renderTasks(tasks) {
-      const container = document.getElementById("tasks");
-      container.innerHTML = "";
-      tasks.forEach((t,i)=>{
-        const div = document.createElement("div");
-        div.className = "task";
-        div.innerHTML = `<span>${t.done ? "✅" : "❌"} ${t.text}</span>
-        ${!t.done ? `<button onclick="finishTask(${i})">Finish</button>` : ""}`;
-        container.appendChild(div);
-      });
-    }
+async function sendTask(){
+  const text = document.getElementById('taskText').value;
+  const assignee = document.getElementById('assignee').value;
+  await fetch('WORKER_URL',{ 
+    method:'POST', 
+    headers:{'Content-Type':'application/json'}, 
+    body:JSON.stringify({action:'addTask', assignee, text, from:user.name})
+  });
+  fetchUsers();
+}
 
-    async function sendMessage() {
-      const text = document.getElementById("msgText").value;
-      if(!text) return;
-      await fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "addMessage", from: user.name, text, color: "lightpink" })
-      });
-      document.getElementById("msgText").value = "";
-      loadData();
-    }
+async function markDone(username,id){
+  await fetch('WORKER_URL',{ 
+    method:'POST', 
+    headers:{'Content-Type':'application/json'}, 
+    body:JSON.stringify({action:'markTaskDone', username, taskId:id})
+  });
+  fetchUsers();
+}
 
-    async function addTask() {
-      const text = document.getElementById("taskText").value;
-      if(!text) return;
-      await fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "addTask", username: user.username, task: text })
-      });
-      document.getElementById("taskText").value = "";
-      loadData();
-    }
+async function fetchBulletin(){
+  const res = await fetch('WORKER_URL',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getBulletin'})
+  });
+  const data = await res.json();
+  const container = document.getElementById('bulletinPosts');
+  container.innerHTML='';
+  data.bulletin.forEach(b=>{
+    const div = document.createElement('div');
+    div.innerHTML=`<b>${b.author}:</b> ${b.text}`;
+    container.appendChild(div);
+  });
+}
 
-    async function finishTask(index) {
-      await fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "finishTask", username: user.username, index })
-      });
-      loadData();
-    }
+async function postBulletin(){
+  const text = document.getElementById('newBulletin').value;
+  if(!text) return;
+  await fetch('WORKER_URL',{ 
+    method:'POST', headers:{'Content-Type':'application/json'}, 
+    body:JSON.stringify({action:'postBulletin', author:user.name, text})
+  });
+  document.getElementById('newBulletin').value='';
+  fetchBulletin();
+}
 
-    async function updateBulletin() {
-      const text = document.getElementById("bulletin").value;
-      await fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "updateBulletin", text })
-      });
-      loadData();
-    }
+async function fetchChat(){
+  const res = await fetch('WORKER_URL',{
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getMessages'})
+  });
+  const data = await res.json();
+  const container = document.getElementById('chat');
+  container.innerHTML='';
+  data.messages.forEach(m=>{
+    const div = document.createElement('div');
+    div.innerHTML=`<b>${m.from} → ${m.to}:</b> ${m.text}`;
+    container.appendChild(div);
+  });
+}
 
-    async function makeAdmin(uname) {
-      await fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "makeAdmin", username: uname })
-      });
-      loadData();
-    }
+async function sendMessage(){
+  const to = document.getElementById('chatTo').value;
+  const text = document.getElementById('chatText').value;
+  if(!to||!text) return;
+  await fetch('WORKER_URL',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'sendMessage', from:user.name, to, text})
+  });
+  document.getElementById('chatText').value='';
+  fetchChat();
+}
 
-    function messageUser(uname) {
-      const text = prompt(`Message to ${uname}:`);
-      if(!text) return;
-      fetch(workerURL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "addMessage", from: user.name, text, color: "lightblue" })
-      }).then(()=>loadData());
-    }
+// Admin helpers
+async function changePassword(target,newPw){
+  await fetch('WORKER_URL',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'changePassword', admin:user.name, target, newPassword:newPw})
+  });
+  fetchUsers();
+}
 
-    loadData();
-    setInterval(loadData, 5000); // auto-refresh
-  </script>
+async function makeAdmin(target){
+  await fetch('WORKER_URL',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'makeAdmin', admin:user.name, target})
+  });
+  fetchUsers();
+}
+
+// Initial fetches
+fetchUsers();
+fetchBulletin();
+fetchChat();
+setInterval(fetchUsers,5000);
+setInterval(fetchChat,2000);
+setInterval(fetchBulletin,5000);
+</script>
 </body>
 </html>
