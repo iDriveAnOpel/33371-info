@@ -5,15 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard</title>
 <style>
-  body { font-family: Arial; display: flex; margin: 0; height: 100vh; }
-  #sidebar { width: 250px; background: #f5f5f5; padding: 1rem; display: flex; flex-direction: column; }
+  body { margin: 0; font-family: Arial; display: flex; height: 100vh; background: #ff4d4d; color: black; }
+  #sidebar { width: 250px; background: #fff0f0; padding: 1rem; display: flex; flex-direction: column; overflow-y: auto; }
   #chat-container { flex: 1; display: flex; flex-direction: column; }
-  #messages { flex: 1; overflow-y: auto; padding: 1rem; background: #eaeaea; }
+  #messages { flex: 1; overflow-y: auto; padding: 1rem; background: #ffe5e5; }
   .message { margin: 0.5rem 0; padding: 0.5rem; border-radius: 6px; max-width: 70%; }
   .mine { align-self: flex-end; font-weight: bold; }
-  #message-form { display: flex; padding: 1rem; background: #ddd; }
-  #message-form input { flex: 1; padding: 0.5rem; }
-  #message-form button { padding: 0.5rem 1rem; }
+  #message-form { display: flex; padding: 1rem; background: #ffcccc; }
+  #message-form input, #message-form select, #message-form input[type=color] { margin-right: 0.5rem; }
   #tasks, #bulletin { margin-top: 1rem; }
   .task { display: flex; justify-content: space-between; background: #fff; padding: 0.5rem; margin: 0.3rem 0; border-radius: 4px; }
   button { cursor: pointer; }
@@ -33,9 +32,9 @@
 <div id="chat-container">
   <div id="messages"></div>
   <form id="message-form">
-    <input type="text" id="messageInput" placeholder="Type message...">
+    <input type="text" id="messageInput" placeholder="Type message..." required>
     <select id="dmSelect"><option value="">Public</option></select>
-    <input type="color" id="colorInput" value="#aabbcc">
+    <input type="color" id="colorInput" value="#ff9999">
     <button type="submit">Send</button>
   </form>
 </div>
@@ -51,12 +50,12 @@ const tasksEl = document.getElementById("tasks");
 const bulletinEl = document.getElementById("bulletin");
 const dmSelect = document.getElementById("dmSelect");
 
-// ================== FETCH USERS ==================
+// ====== Fetch Users ======
 async function fetchUsers() {
   const res = await fetch(endpoint, {
     method: "POST",
-    body: JSON.stringify({ action: "get_users" }),
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "get_users" })
   });
   const data = await res.json();
   if (!data.success) return;
@@ -64,19 +63,20 @@ async function fetchUsers() {
   dmSelect.innerHTML = `<option value="">Public</option>`;
   data.users.forEach(u => {
     const li = document.createElement("li");
-    li.textContent = u.name + " (" + u.role + ")";
+    li.textContent = `${u.name} (${u.role})`;
     userListEl.appendChild(li);
     if (u.name !== user.name) dmSelect.innerHTML += `<option value="${u.name}">${u.name}</option>`;
   });
 }
 fetchUsers();
+setInterval(fetchUsers, 5000);
 
-// ================== FETCH MESSAGES ==================
+// ====== Fetch Messages ======
 async function fetchMessages() {
   const res = await fetch(endpoint, {
     method: "POST",
-    body: JSON.stringify({ action: "get_messages" }),
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "get_messages" })
   });
   const data = await res.json();
   if (!data.success) return;
@@ -85,7 +85,7 @@ async function fetchMessages() {
     if (!m.to || m.to === user.name || m.sender === user.name) {
       const div = document.createElement("div");
       div.className = "message" + (m.sender === user.name ? " mine" : "");
-      div.style.background = m.color || "#ccc";
+      div.style.background = m.color || "#ffe5e5";
       div.textContent = m.sender + ": " + m.content;
       messagesEl.appendChild(div);
     }
@@ -95,8 +95,8 @@ async function fetchMessages() {
 fetchMessages();
 setInterval(fetchMessages, 3000);
 
-// ================== SEND MESSAGE ==================
-document.getElementById("message-form").onsubmit = async (e) => {
+// ====== Send Message ======
+document.getElementById("message-form").onsubmit = async e => {
   e.preventDefault();
   const content = document.getElementById("messageInput").value;
   const color = document.getElementById("colorInput").value;
@@ -104,22 +104,20 @@ document.getElementById("message-form").onsubmit = async (e) => {
 
   const res = await fetch(endpoint, {
     method: "POST",
-    body: JSON.stringify({ action: "send_message", sender: user.name, content, color, to }),
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "send_message", sender: user.name, content, color, to })
   });
   const data = await res.json();
-  if (data.success) {
-    document.getElementById("messageInput").value = "";
-    fetchMessages();
-  }
+  if (data.success) document.getElementById("messageInput").value = "";
+  fetchMessages();
 };
 
-// ================== TASKS ==================
+// ====== Tasks ======
 async function fetchTasks() {
   const res = await fetch(endpoint, {
     method: "POST",
-    body: JSON.stringify({ action: "get_users" }),
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "get_users" })
   });
   const data = await res.json();
   if (!data.success) return;
@@ -135,20 +133,20 @@ async function fetchTasks() {
 async function markTask(index) {
   await fetch(endpoint, {
     method: "POST",
-    body: JSON.stringify({ action: "mark_task_done", username: user.name, index }),
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "mark_task_done", username: user.name, index })
   });
   fetchTasks();
 }
 fetchTasks();
 setInterval(fetchTasks, 5000);
 
-// ================== BULLETIN ==================
+// ====== Bulletin Board ======
 async function fetchBulletin() {
   const res = await fetch(endpoint, {
     method: "POST",
-    body: JSON.stringify({ action: "get_bulletin" }),
-    headers: { "Content-Type": "application/json" }
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "get_bulletin" })
   });
   const data = await res.json();
   if (!data.success) return;
@@ -161,7 +159,6 @@ async function fetchBulletin() {
 }
 fetchBulletin();
 setInterval(fetchBulletin, 5000);
-
 </script>
 </body>
 </html>
