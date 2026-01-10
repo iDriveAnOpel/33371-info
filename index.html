@@ -4,58 +4,79 @@
 <meta charset="UTF-8">
 <title>Login</title>
 <style>
-body {
-  background: #0a1fff;
-  font-family: system-ui;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-.box {
-  background: #ffffff22;
-  padding: 30px;
-  border-radius: 12px;
-}
-input, button {
-  width: 100%;
-  margin: 6px 0;
-  padding: 10px;
-}
-button { cursor: pointer; }
+  body {
+    background: #0a3cff;
+    font-family: system-ui, sans-serif;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .box {
+    background: #082fb8;
+    padding: 30px;
+    border-radius: 14px;
+    width: 320px;
+  }
+  input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+  }
+  button {
+    background: white;
+    color: #0a3cff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .error {
+    color: #ffd1d1;
+    margin-top: 10px;
+  }
 </style>
 </head>
 <body>
+
 <div class="box">
   <h2>Login</h2>
-  <input id="u" placeholder="Username">
-  <input id="p" type="password" placeholder="Password">
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
-  <p id="out"></p>
+  <div class="error" id="error"></div>
 </div>
 
 <script>
 async function login() {
-  const u = document.getElementById("u").value;
-  const p = document.getElementById("p").value;
+  error.textContent = "";
 
   const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: u, password: p })
+    body: JSON.stringify({
+      username: username.value.trim(),
+      password: password.value
+    })
   });
 
   const data = await res.json();
-  if (!data.success) {
-    document.getElementById("out").textContent = "Invalid login";
+  if (!data.ok) {
+    error.textContent = "Invalid credentials";
     return;
   }
 
   localStorage.setItem("username", data.username);
   localStorage.setItem("role", data.role);
-  location.href = "dashboard.html";
+  window.location.href = "dashboard.html";
 }
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") login();
+});
 </script>
+
 </body>
 </html>
