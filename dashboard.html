@@ -3,106 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard</title>
+<title>Dashboard - Info App</title>
 <style>
-  body { font-family:sans-serif; background:#ffcccc; margin:0; display:flex; height:100vh; }
-  #contacts { width:200px; background:#ff6666; padding:1rem; overflow-y:auto; color:white; }
-  #main { flex:1; display:flex; flex-direction:column; }
-  #bulletin { background:#ff9999; flex:1; padding:1rem; overflow-y:auto; }
-  #tasks { background:#ffb3b3; padding:1rem; height:200px; overflow-y:auto; }
-  h3 { margin-top:0; }
-  .contact { margin:0.5rem 0; cursor:pointer; }
-  .task { margin:0.5rem 0; }
-  button { margin-left:0.5rem; padding:0.2rem 0.5rem; cursor:pointer; }
+  body { margin:0; font-family:sans-serif; background:#ff4d4d; color:white; display:grid; grid-template-columns:200px 1fr 250px; grid-template-rows:1fr 150px; height:100vh; }
+  #contacts { grid-column:1; grid-row:1/3; background:#cc0000; padding:10px; overflow-y:auto; }
+  #groupchat { grid-column:2; grid-row:1; background:#e65c5c; padding:10px; overflow-y:auto; display:flex; flex-direction:column; }
+  #bulletin { grid-column:3; grid-row:1/3; background:#b30000; padding:10px; overflow-y:auto; }
+  #tasks { grid-column:2; grid-row:2; background:#ff6666; padding:10px; overflow-y:auto; }
+  h2 { margin-top:0; }
+  .contact { padding:5px; border-bottom:1px solid #ff9999; cursor:pointer; }
+  .contact:hover { background:#ff8080; }
+  .message { background:#ff9999; color:#330000; padding:5px; margin:2px 0; border-radius:5px; position:relative; }
+  .message .controls { position:absolute; top:2px; right:2px; font-size:12px; cursor:pointer; }
+  textarea { width:100%; margin-top:5px; }
+  button { margin-top:5px; padding:5px; border:none; border-radius:5px; background:#990000; color:white; cursor:pointer; }
+  button:hover { background:#660000; }
 </style>
 </head>
 <body>
+
 <div id="contacts">
-  <h3>Contacts</h3>
-  <div id="contact-list"></div>
+  <h2>Contacts</h2>
+  <div id="contactList"></div>
 </div>
 
-<div id="main">
-  <div id="bulletin">
-    <h3>Bulletin Board</h3>
-    <div id="bulletin-list"></div>
-    <input type="text" id="bulletin-text" placeholder="New bulletin">
-    <button onclick="postBulletin()">Post</button>
-  </div>
+<div id="groupchat">
+  <h2>Group Chat</h2>
+  <div id="gcMessages" style="flex:1; overflow-y:auto;"></div>
+  <textarea id="gcInput" placeholder="Type message..."></textarea>
+  <button onclick="sendGroupMessage()">Send</button>
+</div>
 
-  <div id="tasks">
-    <h3>Received Tasks</h3>
-    <div id="task-list"></div>
-  </div>
+<div id="bulletin">
+  <h2>Bulletin Board</h2>
+  <div id="bulletinNotes"></div>
+  <textarea id="bulletinInput" placeholder="Add note..."></textarea>
+  <button onclick="sendBulletin()">Post</button>
+</div>
+
+<div id="tasks">
+  <h2>Tasks</h2>
+  <div id="taskList"></div>
 </div>
 
 <script>
-const API = 'https://33371-login-api.info-snaiges.workers.dev/';
-const user = JSON.parse(sessionStorage.getItem('user'));
-if(!user) window.location.href='index.html';
+const API_BASE = 'https://33371-login-api.info-snaiges.workers.dev';
+const user = JSON.parse(localStorage.getItem('user') || '{}');
+if(!user.username) { window.location.href='index.html'; }
 
-async function loadUsers() {
-  const resp = await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getUsers'})});
-  const data = await resp.json();
-  if(!data.success) return;
-  const container = document.getElementById('contact-list');
+const contacts = ['motiejus','danguole','emilis','luka','justas','dominykas','test'];
+
+async function fetchGroupMessages() {
+  const res = await fetch(`${API_BASE}/messages?username=${user.username}&type=GROUPCHAT`);
+  const data = await res.json();
+  const container = document.getElementById('gcMessages');
+  container.innerHTML = '';
+  if(data.success) {
+    data.messages.forEach(m => {
+      const div = document.createElement('div');
+      div.className='message';
+      div.textContent = `${m.from}: ${m.content}`;
+      if(m.from===user.username || user.role==='admin') {
+        const edit = document.createElement('span');
+        edit.textContent='✎';
+        edit.className='controls';
+        edit.onclick = ()=>editMessage(m.id);
+        div.appendChild(edit);
+        const del = document.createElement('span');
+        del.textContent='🗑';
+        del.className='controls';
+        del.style.right='20px';
+        del.onclick = ()=>deleteMessage(m.id);
+        div.appendChild(del);
+      }
+      container.appendChild(div);
+    });
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+async function sendGroupMessage() {
+  const content = document.getElementById('gcInput').value.trim();
+  if(!content) return;
+  await fetch(`${API_BASE}/messages`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ from:user.username, to:'GROUPCHAT', content })
+  });
+  document.getElementById('gcInput').value='';
+  fetchGroupMessages();
+}
+
+async function fetchBulletin() {
+  const res = await fetch(`${API_BASE}/bulletin`);
+  const data = await res.json();
+  const container = document.getElementById('bulletinNotes');
   container.innerHTML='';
-  data.users.forEach(u=>{
+  if(data.success) {
+    data.notes.forEach(n=>{
+      const div = document.createElement('div');
+      div.textContent=`${n.from}: ${n.content}`;
+      container.appendChild(div);
+    });
+  }
+}
+
+async function sendBulletin() {
+  const content = document.getElementById('bulletinInput').value.trim();
+  if(!content) return;
+  await fetch(`${API_BASE}/bulletin`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username:user.username, content })
+  });
+  document.getElementById('bulletinInput').value='';
+  fetchBulletin();
+}
+
+function editMessage(msgId) {
+  const newContent = prompt('Edit message:');
+  if(!newContent) return;
+  fetch(`${API_BASE}/messages/edit`, {
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ username:user.username, msgId, newContent })
+  }).then(fetchGroupMessages);
+}
+
+function deleteMessage(msgId) {
+  fetch(`${API_BASE}/messages/delete`, {
+    method:'DELETE',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ username:user.username, msgId })
+  }).then(fetchGroupMessages);
+}
+
+// Contacts list
+function renderContacts() {
+  const container = document.getElementById('contactList');
+  container.innerHTML='';
+  contacts.forEach(c=>{
+    if(c===user.username) return;
     const div = document.createElement('div');
     div.className='contact';
-    div.innerText=u.name + (u.role==='admin'?' [ADMIN]':'');
-    div.onclick = ()=>alert('You can implement direct message here: '+u.name);
+    div.textContent=c;
+    div.onclick = ()=>startDM(c);
     container.appendChild(div);
   });
 }
 
-async function loadBulletin() {
-  const resp = await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getBulletin'})});
-  const data = await resp.json();
-  if(!data.success) return;
-  const container = document.getElementById('bulletin-list');
-  container.innerHTML='';
-  data.bulletin.forEach(b=>{
-    const div = document.createElement('div');
-    div.innerText=`[${new Date(b.time).toLocaleTimeString()}] ${b.author}: ${b.text}`;
-    container.appendChild(div);
+async function startDM(toUser) {
+  const content = prompt(`Send DM to ${toUser}:`);
+  if(!content) return;
+  await fetch(`${API_BASE}/messages`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ from:user.username, to:toUser, content })
   });
-}
-
-async function postBulletin() {
-  const text = document.getElementById('bulletin-text').value.trim();
-  if(!text) return;
-  await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'postBulletin',author:user.name,text})});
-  document.getElementById('bulletin-text').value='';
-  loadBulletin();
-}
-
-async function loadTasks() {
-  const resp = await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'getUsers'})});
-  const data = await resp.json();
-  if(!data.success) return;
-  const container = document.getElementById('task-list');
-  container.innerHTML='';
-  const me = data.users.find(u=>u.name===user.name);
-  if(!me || !me.tasks) return;
-  me.tasks.forEach(t=>{
-    const div = document.createElement('div');
-    div.className='task';
-    div.innerHTML = `${t.text} from ${t.from} <button onclick="markDone(${t.id})">${t.done?'✔':'Mark done'}</button>`;
-    container.appendChild(div);
-  });
-}
-
-async function markDone(id) {
-  await fetch(API,{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'markTaskDone',username:user.name,taskId:id})});
-  loadTasks();
+  alert('Message sent!');
 }
 
 // Initial load
-loadUsers();
-loadBulletin();
-loadTasks();
-setInterval(()=>{loadBulletin(); loadTasks();},5000); // refresh every 5s
+renderContacts();
+fetchGroupMessages();
+fetchBulletin();
+setInterval(fetchGroupMessages, 3000);
+setInterval(fetchBulletin, 5000);
 </script>
+
 </body>
 </html>
