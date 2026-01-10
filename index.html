@@ -3,55 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login</title>
+<title>Login - Info App</title>
 <style>
-  body { font-family: sans-serif; background:#cce0ff; display:flex; justify-content:center; align-items:center; height:100vh; }
-  #login-box { background:#3399ff; padding:2rem; border-radius:10px; color:white; width:300px; text-align:center; }
-  input { width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:5px; border:none; }
-  button { padding:0.5rem; width:100%; background:#0066cc; border:none; border-radius:5px; color:white; font-weight:bold; cursor:pointer; }
-  button:hover { background:#004c99; }
-  .error { color:#ffcccb; }
+  body { margin:0; font-family:sans-serif; background:#007BFF; color:white; display:flex; justify-content:center; align-items:center; height:100vh; }
+  .login-box { background:#0056b3; padding:40px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.5); width:300px; }
+  h1 { text-align:center; margin-bottom:20px; }
+  input { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; }
+  button { width:100%; padding:10px; border:none; border-radius:5px; background:#00bfff; color:white; font-weight:bold; cursor:pointer; }
+  button:hover { background:#0099cc; }
+  .error { color:#ffaaaa; text-align:center; }
 </style>
 </head>
 <body>
-  <div id="login-box">
-    <h2>Login</h2>
-    <input type="text" id="username" placeholder="Username"><br>
-    <input type="password" id="password" placeholder="Password"><br>
-    <button onclick="login()">Login</button>
-    <div id="error" class="error"></div>
-  </div>
+
+<div class="login-box">
+  <h1>Login</h1>
+  <input type="text" id="username" placeholder="Username">
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <div class="error" id="error"></div>
+</div>
 
 <script>
-const API = 'https://33371-login-api.info-snaiges.workers.dev/';
+const API_URL = 'https://33371-login-api.info-snaiges.workers.dev/login';
 
 async function login() {
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
-  document.getElementById('error').innerText='';
-
-  if(!username || !password) return;
-
+  document.getElementById('error').textContent = '';
   try {
-    const resp = await fetch(API, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'getUsers'})
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ username, password })
     });
-    const data = await resp.json();
-    if(!data.success) { document.getElementById('error').innerText = data.error; return; }
-
-    const user = data.users.find(u=>u.name===username && u.password===password);
-    if(!user) { document.getElementById('error').innerText='Invalid credentials'; return; }
-
-    // Save user info to sessionStorage
-    sessionStorage.setItem('user', JSON.stringify(user));
-    window.location.href='dashboard.html';
+    const data = await res.json();
+    if(data.success) {
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.location.href = 'dashboard.html';
+    } else {
+      document.getElementById('error').textContent = data.error;
+    }
   } catch(e) {
-    console.error(e);
-    document.getElementById('error').innerText='Network error';
+    document.getElementById('error').textContent = 'Network error';
   }
 }
 </script>
+
 </body>
 </html>
