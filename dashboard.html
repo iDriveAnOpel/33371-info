@@ -1,174 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard - Info App</title>
+<title>Dashboard</title>
 <style>
-  body { margin:0; font-family:sans-serif; background:#ff4d4d; color:white; display:grid; grid-template-columns:200px 1fr 250px; grid-template-rows:1fr 150px; height:100vh; }
-  #contacts { grid-column:1; grid-row:1/3; background:#cc0000; padding:10px; overflow-y:auto; }
-  #groupchat { grid-column:2; grid-row:1; background:#e65c5c; padding:10px; overflow-y:auto; display:flex; flex-direction:column; }
-  #bulletin { grid-column:3; grid-row:1/3; background:#b30000; padding:10px; overflow-y:auto; }
-  #tasks { grid-column:2; grid-row:2; background:#ff6666; padding:10px; overflow-y:auto; }
-  h2 { margin-top:0; }
-  .contact { padding:5px; border-bottom:1px solid #ff9999; cursor:pointer; }
-  .contact:hover { background:#ff8080; }
-  .message { background:#ff9999; color:#330000; padding:5px; margin:2px 0; border-radius:5px; position:relative; }
-  .message .controls { position:absolute; top:2px; right:2px; font-size:12px; cursor:pointer; }
-  textarea { width:100%; margin-top:5px; }
-  button { margin-top:5px; padding:5px; border:none; border-radius:5px; background:#990000; color:white; cursor:pointer; }
-  button:hover { background:#660000; }
+body {
+  margin: 0;
+  background: #8b0000;
+  color: white;
+  font-family: system-ui;
+  display: grid;
+  grid-template-columns: 200px 1fr 250px;
+  height: 100vh;
+}
+.panel { padding: 10px; overflow-y: auto; }
+.center { border-left: 2px solid #fff3; border-right: 2px solid #fff3; }
+input, button { width: 100%; margin-top: 6px; }
+.msg { margin: 6px 0; padding: 6px; border-radius: 6px; }
+.me { background: #ff4444; }
+.other { background: #333; }
 </style>
 </head>
 <body>
 
-<div id="contacts">
-  <h2>Contacts</h2>
-  <div id="contactList"></div>
+<div class="panel" id="contacts">Contacts</div>
+
+<div class="panel center">
+  <h3>Group Chat</h3>
+  <div id="chat"></div>
+  <input id="msg">
+  <button onclick="send()">Send</button>
 </div>
 
-<div id="groupchat">
-  <h2>Group Chat</h2>
-  <div id="gcMessages" style="flex:1; overflow-y:auto;"></div>
-  <textarea id="gcInput" placeholder="Type message..."></textarea>
-  <button onclick="sendGroupMessage()">Send</button>
-</div>
-
-<div id="bulletin">
-  <h2>Bulletin Board</h2>
-  <div id="bulletinNotes"></div>
-  <textarea id="bulletinInput" placeholder="Add note..."></textarea>
-  <button onclick="sendBulletin()">Post</button>
-</div>
-
-<div id="tasks">
-  <h2>Tasks</h2>
-  <div id="taskList"></div>
+<div class="panel">
+  <h3>Bulletin</h3>
+  <div id="bulletin"></div>
 </div>
 
 <script>
-const API_BASE = 'https://33371-login-api.info-snaiges.workers.dev';
-const user = JSON.parse(localStorage.getItem('user') || '{}');
-if(!user.username) { window.location.href='index.html'; }
+const username = localStorage.getItem("username");
+if (!username) location.href = "index.html";
 
-const contacts = ['motiejus','danguole','emilis','luka','justas','dominykas','test'];
-
-async function fetchGroupMessages() {
-  const res = await fetch(`${API_BASE}/messages?username=${user.username}&type=GROUPCHAT`);
-  const data = await res.json();
-  const container = document.getElementById('gcMessages');
-  container.innerHTML = '';
-  if(data.success) {
-    data.messages.forEach(m => {
-      const div = document.createElement('div');
-      div.className='message';
-      div.textContent = `${m.from}: ${m.content}`;
-      if(m.from===user.username || user.role==='admin') {
-        const edit = document.createElement('span');
-        edit.textContent='✎';
-        edit.className='controls';
-        edit.onclick = ()=>editMessage(m.id);
-        div.appendChild(edit);
-        const del = document.createElement('span');
-        del.textContent='🗑';
-        del.className='controls';
-        del.style.right='20px';
-        del.onclick = ()=>deleteMessage(m.id);
-        div.appendChild(del);
-      }
-      container.appendChild(div);
-    });
-    container.scrollTop = container.scrollHeight;
-  }
-}
-
-async function sendGroupMessage() {
-  const content = document.getElementById('gcInput').value.trim();
-  if(!content) return;
-  await fetch(`${API_BASE}/messages`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ from:user.username, to:'GROUPCHAT', content })
-  });
-  document.getElementById('gcInput').value='';
-  fetchGroupMessages();
-}
-
-async function fetchBulletin() {
-  const res = await fetch(`${API_BASE}/bulletin`);
-  const data = await res.json();
-  const container = document.getElementById('bulletinNotes');
-  container.innerHTML='';
-  if(data.success) {
-    data.notes.forEach(n=>{
-      const div = document.createElement('div');
-      div.textContent=`${n.from}: ${n.content}`;
-      container.appendChild(div);
-    });
-  }
-}
-
-async function sendBulletin() {
-  const content = document.getElementById('bulletinInput').value.trim();
-  if(!content) return;
-  await fetch(`${API_BASE}/bulletin`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ username:user.username, content })
-  });
-  document.getElementById('bulletinInput').value='';
-  fetchBulletin();
-}
-
-function editMessage(msgId) {
-  const newContent = prompt('Edit message:');
-  if(!newContent) return;
-  fetch(`${API_BASE}/messages/edit`, {
-    method:'PUT',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ username:user.username, msgId, newContent })
-  }).then(fetchGroupMessages);
-}
-
-function deleteMessage(msgId) {
-  fetch(`${API_BASE}/messages/delete`, {
-    method:'DELETE',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ username:user.username, msgId })
-  }).then(fetchGroupMessages);
-}
-
-// Contacts list
-function renderContacts() {
-  const container = document.getElementById('contactList');
-  container.innerHTML='';
-  contacts.forEach(c=>{
-    if(c===user.username) return;
-    const div = document.createElement('div');
-    div.className='contact';
-    div.textContent=c;
-    div.onclick = ()=>startDM(c);
-    container.appendChild(div);
+async function loadChat() {
+  const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/groupchat");
+  const msgs = await res.json();
+  chat.innerHTML = "";
+  msgs.forEach(m => {
+    const d = document.createElement("div");
+    d.className = "msg " + (m.sender === username ? "me" : "other");
+    d.textContent = `${m.sender}: ${m.text}`;
+    chat.appendChild(d);
   });
 }
 
-async function startDM(toUser) {
-  const content = prompt(`Send DM to ${toUser}:`);
-  if(!content) return;
-  await fetch(`${API_BASE}/messages`, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ from:user.username, to:toUser, content })
+async function send() {
+  const text = msg.value;
+  msg.value = "";
+  await fetch("https://33371-login-api.info-snaiges.workers.dev/groupchat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, text })
   });
-  alert('Message sent!');
+  loadChat();
 }
 
-// Initial load
-renderContacts();
-fetchGroupMessages();
-fetchBulletin();
-setInterval(fetchGroupMessages, 3000);
-setInterval(fetchBulletin, 5000);
+async function loadBulletin() {
+  const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/bulletin");
+  const posts = await res.json();
+  bulletin.innerHTML = posts.map(p => `<div>• ${p.text}</div>`).join("");
+}
+
+loadChat();
+loadBulletin();
 </script>
 
 </body>
