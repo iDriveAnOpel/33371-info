@@ -1,54 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login - Info App</title>
+<title>Login</title>
 <style>
-  body { margin:0; font-family:sans-serif; background:#007BFF; color:white; display:flex; justify-content:center; align-items:center; height:100vh; }
-  .login-box { background:#0056b3; padding:40px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.5); width:300px; }
-  h1 { text-align:center; margin-bottom:20px; }
-  input { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; }
-  button { width:100%; padding:10px; border:none; border-radius:5px; background:#00bfff; color:white; font-weight:bold; cursor:pointer; }
-  button:hover { background:#0099cc; }
-  .error { color:#ffaaaa; text-align:center; }
+body {
+  background: #0a1fff;
+  font-family: system-ui;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+.box {
+  background: #ffffff22;
+  padding: 30px;
+  border-radius: 12px;
+}
+input, button {
+  width: 100%;
+  margin: 6px 0;
+  padding: 10px;
+}
+button { cursor: pointer; }
 </style>
 </head>
 <body>
-
-<div class="login-box">
-  <h1>Login</h1>
-  <input type="text" id="username" placeholder="Username">
-  <input type="password" id="password" placeholder="Password">
+<div class="box">
+  <h2>Login</h2>
+  <input id="u" placeholder="Username">
+  <input id="p" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
-  <div class="error" id="error"></div>
+  <p id="out"></p>
 </div>
 
 <script>
-const API_URL = 'https://33371-login-api.info-snaiges.workers.dev/login';
-
 async function login() {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
-  document.getElementById('error').textContent = '';
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if(data.success) {
-      localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.href = 'dashboard.html';
-    } else {
-      document.getElementById('error').textContent = data.error;
-    }
-  } catch(e) {
-    document.getElementById('error').textContent = 'Network error';
+  const u = document.getElementById("u").value;
+  const p = document.getElementById("p").value;
+
+  const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: u, password: p })
+  });
+
+  const data = await res.json();
+  if (!data.success) {
+    document.getElementById("out").textContent = "Invalid login";
+    return;
   }
+
+  localStorage.setItem("username", data.username);
+  localStorage.setItem("role", data.role);
+  location.href = "dashboard.html";
 }
 </script>
-
 </body>
 </html>
