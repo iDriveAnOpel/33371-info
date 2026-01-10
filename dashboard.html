@@ -4,48 +4,104 @@
 <meta charset="UTF-8">
 <title>Dashboard</title>
 <style>
-body {
-  margin: 0;
-  background: #8b0000;
-  color: white;
-  font-family: system-ui;
-  display: grid;
-  grid-template-columns: 200px 1fr 250px;
-  height: 100vh;
-}
-.panel { padding: 10px; overflow-y: auto; }
-.center { border-left: 2px solid #fff3; border-right: 2px solid #fff3; }
-input, button { width: 100%; margin-top: 6px; }
-.msg { margin: 6px 0; padding: 6px; border-radius: 6px; }
-.me { background: #ff4444; }
-.other { background: #333; }
+  body {
+    margin: 0;
+    background: #7a0000;
+    color: white;
+    font-family: system-ui, sans-serif;
+  }
+  header {
+    background: #9c0000;
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  main {
+    display: grid;
+    grid-template-columns: 260px 1fr 260px;
+    height: calc(100vh - 60px);
+  }
+  .panel {
+    background: #8b0000;
+    padding: 10px;
+    overflow-y: auto;
+  }
+  .center {
+    padding: 10px;
+  }
+  button {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .msg {
+    margin-bottom: 8px;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  .me { background: #b30000; }
+  .other { background: #6a0000; }
 </style>
 </head>
 <body>
 
-<div class="panel" id="contacts">Contacts</div>
+<header>
+  <div>Logged in as <b id="user"></b></div>
+  <div>
+    <button onclick="location.href='settings.html'">Settings</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
 
-<div class="panel center">
-  <h3>Group Chat</h3>
-  <div id="chat"></div>
-  <input id="msg">
-  <button onclick="send()">Send</button>
-</div>
+<main>
+  <div class="panel" id="contacts">
+    <h3>Contacts</h3>
+  </div>
 
-<div class="panel">
-  <h3>Bulletin</h3>
-  <div id="bulletin"></div>
-</div>
+  <div class="center">
+    <h3>Group Chat</h3>
+    <div id="chat"></div>
+    <input id="msg" placeholder="Type message…" style="width:100%;margin-top:8px;">
+  </div>
+
+  <div class="panel">
+    <h3>Bulletin</h3>
+    <div id="bulletin"></div>
+  </div>
+</main>
 
 <script>
 const username = localStorage.getItem("username");
 if (!username) location.href = "index.html";
+user.textContent = username;
+
+msg.addEventListener("keydown", e => {
+  if (e.key === "Enter") sendMessage();
+});
+
+async function sendMessage() {
+  if (!msg.value) return;
+  await fetch("https://33371-login-api.info-snaiges.workers.dev/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: "GROUPCHAT",
+      sender: username,
+      text: msg.value
+    })
+  });
+  msg.value = "";
+  loadChat();
+}
 
 async function loadChat() {
-  const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/groupchat");
-  const msgs = await res.json();
+  const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/messages?type=GROUPCHAT");
+  const data = await res.json();
   chat.innerHTML = "";
-  msgs.forEach(m => {
+  data.forEach(m => {
     const d = document.createElement("div");
     d.className = "msg " + (m.sender === username ? "me" : "other");
     d.textContent = `${m.sender}: ${m.text}`;
@@ -53,25 +109,13 @@ async function loadChat() {
   });
 }
 
-async function send() {
-  const text = msg.value;
-  msg.value = "";
-  await fetch("https://33371-login-api.info-snaiges.workers.dev/groupchat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, text })
-  });
-  loadChat();
-}
-
-async function loadBulletin() {
-  const res = await fetch("https://33371-login-api.info-snaiges.workers.dev/bulletin");
-  const posts = await res.json();
-  bulletin.innerHTML = posts.map(p => `<div>• ${p.text}</div>`).join("");
+function logout() {
+  localStorage.clear();
+  location.href = "index.html";
 }
 
 loadChat();
-loadBulletin();
+setInterval(loadChat, 15000);
 </script>
 
 </body>
